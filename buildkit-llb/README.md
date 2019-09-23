@@ -28,7 +28,7 @@ for inclusion in `buildkit-llb` by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
 
 [Actions Link]: https://github.com/denzp/rust-buildkit/actions
-[Actions Status]: https://github.com/denzp/rust-buildkit/workflows/Rust/badge.svg
+[Actions Status]: https://github.com/denzp/rust-buildkit/workflows/CI/badge.svg
 [buildkit-llb Docs Badge]: https://docs.rs/buildkit-llb/badge.svg
 [buildkit-llb Docs Link]: https://docs.rs/buildkit-llb/
 [buildkit-llb Crates Badge]: https://img.shields.io/crates/v/buildkit-llb.svg

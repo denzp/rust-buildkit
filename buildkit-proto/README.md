@@ -24,7 +24,7 @@ for inclusion in `buildkit-proto` by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
 
 [Actions Link]: https://github.com/denzp/rust-buildkit/actions
-[Actions Status]: https://github.com/denzp/rust-buildkit/workflows/Rust/badge.svg
+[Actions Status]: https://github.com/denzp/rust-buildkit/workflows/CI/badge.svg
 [buildkit-proto Docs Badge]: https://docs.rs/buildkit-proto/badge.svg
 [buildkit-proto Docs Link]: https://docs.rs/buildkit-proto/
 [buildkit-proto Crates Badge]: https://img.shields.io/crates/v/buildkit-proto.svg
