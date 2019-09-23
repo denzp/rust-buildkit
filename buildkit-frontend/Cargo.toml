@@ -4,6 +4,14 @@ version = "0.1.0"
 authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
 edition = "2018"
 
+description = "Foundation for BuildKit frontends implemented in Rust"
+documentation = "https://docs.rs/buildkit-frontend"
+repository = "https://github.com/denzp/rust-buildkit"
+readme = "README.md"
+keywords = ["buildkit", "docker", "bridge"]
+categories = ["development-tools::build-utils", "api-bindings"]
+license = "MIT/Apache-2.0"
+
 [dependencies]
 csv = "1.1"
 failure = "0.1"
