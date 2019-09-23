@@ -24,11 +24,13 @@ jobs:
     - uses: actions-rs/components-nightly@v1
       id: component
       with:
+        target: x86_64-unknown-linux-gnu
         component: rustfmt
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: ${{ steps.component.outputs.toolchain }}
         override: true
+    - run: rustup component add rustfmt
     - uses: actions-rs/cargo@v1
       with:
         command: fmt
@@ -42,11 +44,13 @@ jobs:
     - uses: actions-rs/components-nightly@v1
       id: component
       with:
+        target: x86_64-unknown-linux-gnu
         component: clippy
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: ${{ steps.component.outputs.toolchain }}
         override: true
+    - run: rustup component add clippy
     - uses: actions-rs/cargo@v1
       with:
         command: clippy
