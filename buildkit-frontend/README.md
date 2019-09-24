@@ -1,4 +1,5 @@
-# `buildkit-frontend` - foundation for BuildKit frontends implemented in Rust
+`buildkit-frontend` - foundation for BuildKit frontends implemented in Rust
+=======
 
 [![Actions Status]][Actions Link]
 [![buildkit-frontend Crates Badge]][buildkit-frontend Crates Link]

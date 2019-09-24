@@ -1,4 +1,5 @@
-# `buildkit-proto` - protobuf interfaces to BuildKit
+`buildkit-proto` - protobuf interfaces to BuildKit
+=======
 
 [![Actions Status]][Actions Link]
 [![buildkit-proto Crates Badge]][buildkit-proto Crates Link]
