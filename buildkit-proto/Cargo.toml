@@ -4,6 +4,14 @@ version = "0.1.0"
 authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
 edition = "2018"
 
+description = "Protobuf interfaces to BuildKit"
+documentation = "https://docs.rs/buildkit-proto"
+repository = "https://github.com/denzp/rust-buildkit"
+readme = "README.md"
+keywords = ["buildkit", "docker", "protobuf", "prost"]
+categories = ["development-tools::build-utils", "api-bindings"]
+license = "MIT/Apache-2.0"
+
 [dependencies]
 bytes = "0.4"
 futures = "0.1"
