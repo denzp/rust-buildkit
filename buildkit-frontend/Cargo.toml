@@ -38,11 +38,11 @@ version = "0.4"
 features = ["serde"]
 
 [dependencies.buildkit-proto]
-version = "0.1"
+version = "0.1.0"
 path = "../buildkit-proto"
 
 [dependencies.buildkit-llb]
-version = "0.1"
+version = "0.1.0"
 path = "../buildkit-llb"
 
 [dev-dependencies]
