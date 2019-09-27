@@ -47,3 +47,5 @@ path = "../buildkit-llb"
 
 [dev-dependencies]
 pretty_assertions = "0.6"
+runtime = { version = "0.3.0-alpha.7", default-features = false }
+runtime-tokio = "0.3.0-alpha.6"
