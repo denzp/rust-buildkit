@@ -73,7 +73,13 @@ impl ReverseFrontend {
             String::from_utf8_lossy(&dockerfile_contents)
                 .lines()
                 .into_iter()
-                .map(|line| line.chars().rev().chain(once('\n')).collect::<String>())
+                .map(|line| {
+                    line.trim()
+                        .chars()
+                        .rev()
+                        .chain(once('\n'))
+                        .collect::<String>()
+                })
                 .collect()
         };
 

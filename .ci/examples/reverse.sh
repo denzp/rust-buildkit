@@ -8,7 +8,4 @@ OUTPUT_LABEL="rust-buildkit:$EXAMPLE-image"
 docker build -t $FRONTEND_LABEL -f .ci/examples/$EXAMPLE.dockerfile .
 docker build -t $OUTPUT_LABEL   -f .ci/examples/$EXAMPLE.input .
 
-OUTPUT=$(docker run --rm -it $OUTPUT_LABEL)
-REFERENCE=$(cat .ci/examples/$EXAMPLE.output)
-
-diff --strip-trailing-cr --color=always <(echo -n "$OUTPUT") <(echo -n "$REFERENCE")
+diff --strip-trailing-cr --color=always <(cat .ci/examples/$EXAMPLE.output) <(docker run --rm -it $OUTPUT_LABEL)
