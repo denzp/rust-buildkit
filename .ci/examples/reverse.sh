@@ -11,4 +11,4 @@ docker build -t $OUTPUT_LABEL   -f .ci/examples/$EXAMPLE.input .
 OUTPUT=$(docker run --rm -it $OUTPUT_LABEL)
 REFERENCE=$(cat .ci/examples/$EXAMPLE.output)
 
-diff --color=always <(echo -n "$OUTPUT") <(echo -n "$REFERENCE")
+diff --strip-trailing-cr --color=always <(echo -n "$OUTPUT") <(echo -n "$REFERENCE")

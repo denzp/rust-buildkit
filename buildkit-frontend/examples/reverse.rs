@@ -23,11 +23,11 @@ struct ReverseFrontend;
 impl Frontend for ReverseFrontend {
     type RunFuture = impl Future<Output = Result<FrontendOutput, Error>>;
 
-    fn run(self, mut bridge: Bridge, options: Options) -> Self::RunFuture {
+    fn run(self, bridge: Bridge, options: Options) -> Self::RunFuture {
         async move {
             Ok(FrontendOutput::with_spec_and_ref(
                 Self::image_spec(),
-                Self::solve(&mut bridge, options.get("filename").unwrap()).await?,
+                Self::solve(&bridge, options.get("filename").unwrap()).await?,
             ))
         }
     }
@@ -60,7 +60,7 @@ impl ReverseFrontend {
         }
     }
 
-    async fn solve(bridge: &mut Bridge, dockerfile_path: &str) -> Result<OutputRef, Error> {
+    async fn solve(bridge: &Bridge, dockerfile_path: &str) -> Result<OutputRef, Error> {
         let dockerfile = Source::local("dockerfile");
         let alpine = Source::image("alpine:latest");
 

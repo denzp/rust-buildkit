@@ -4,9 +4,10 @@
 use failure::{Error, ResultExt};
 use futures::compat::*;
 use futures::prelude::*;
+use hyper::client::connect::Destination;
 use log::*;
-use tokio::executor::DefaultExecutor;
-use tower_h2::client::Connection;
+use tower_hyper::{client, util};
+use tower_util::MakeService;
 
 mod bridge;
 mod error;
@@ -21,7 +22,7 @@ use oci::ImageSpecification;
 pub use self::bridge::Bridge;
 pub use self::error::ErrorCode;
 pub use self::options::Options;
-pub use self::stdio::StdioSocket;
+pub use self::stdio::{StdioConnector, StdioSocket};
 pub use self::utils::{ErrorWithCauses, OutputRef};
 
 pub trait Frontend {
@@ -52,20 +53,16 @@ impl FrontendOutput {
 }
 
 pub async fn run_frontend<F: Frontend>(frontend: F) -> Result<(), Error> {
-    let socket = StdioSocket::try_new()?;
-    let connection = {
-        Connection::handshake(socket, DefaultExecutor::current())
-            .compat()
-            .await
-            .context("Unable to perform a HTTP/2 handshake")?
-    };
+    let connector = util::Connector::new(StdioConnector);
+    let settings = client::Builder::new().http2_only(true).clone();
 
-    debug!("stdio socket initialized");
+    let mut make_client = client::Connect::with_builder(connector, settings);
+    let fake_destination = Destination::try_from_uri("http://localhost".parse()?)?;
 
     let connection = {
         tower_request_modifier::Builder::new()
             .set_origin("http://localhost")
-            .build(connection)
+            .build(make_client.make_service(fake_destination).compat().await?)
             .unwrap()
     };
 
