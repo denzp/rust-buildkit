@@ -25,8 +25,8 @@ tokio = "0.1"
 
 tower-grpc = "0.1"
 tower-hyper = "0.1"
+tower-request-modifier = "0.1"
 tower-util = "0.1"
-tower-request-modifier = { git = "https://github.com/tower-rs/tower-http" }
 
 [dependencies.serde]
 version = "1.0"
