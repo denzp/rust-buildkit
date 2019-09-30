@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use failure::{bail, format_err, Error, ResultExt};
 use futures::compat::*;
+use futures::lock::Mutex;
 use log::*;
-use tokio::executor::DefaultExecutor;
 
-use tower_grpc::BoxBody;
-use tower_grpc::Request;
-use tower_h2::client::Connection;
+use tower_grpc::{BoxBody, Request};
+use tower_hyper::client::Connection;
 
 use buildkit_proto::google::rpc::Status;
 use buildkit_proto::moby::buildkit::v1::frontend::{
@@ -22,28 +22,24 @@ pub use buildkit_proto::moby::buildkit::v1::frontend::FileRange;
 
 use crate::error::ErrorCode;
 use crate::oci::ImageSpecification;
-use crate::stdio::StdioSocket;
 use crate::utils::OutputRef;
 
-type BridgeConnection = tower_request_modifier::RequestModifier<
-    Connection<StdioSocket, DefaultExecutor, BoxBody>,
-    BoxBody,
->;
+type BridgeConnection = tower_request_modifier::RequestModifier<Connection<BoxBody>, BoxBody>;
 
 #[derive(Clone)]
 pub struct Bridge {
-    client: client::LlbBridge<BridgeConnection>,
+    client: Arc<Mutex<client::LlbBridge<BridgeConnection>>>,
 }
 
 impl Bridge {
     pub(crate) fn new(client: BridgeConnection) -> Self {
         Self {
-            client: client::LlbBridge::new(client),
+            client: Arc::new(Mutex::new(client::LlbBridge::new(client))),
         }
     }
 
     pub async fn resolve_image_config(
-        &mut self,
+        &self,
         image: &ImageSource,
         log: Option<&str>,
     ) -> Result<(String, ImageSpecification), Error> {
@@ -57,6 +53,8 @@ impl Bridge {
         debug!("requesting to resolve an image: {:?}", request);
         let response = {
             self.client
+                .lock()
+                .await
                 .resolve_image_config(Request::new(request))
                 .compat()
                 .await
@@ -71,7 +69,7 @@ impl Bridge {
         ))
     }
 
-    pub async fn solve<'a, 'b: 'a>(&'a mut self, graph: Terminal<'b>) -> Result<OutputRef, Error> {
+    pub async fn solve<'a, 'b: 'a>(&'a self, graph: Terminal<'b>) -> Result<OutputRef, Error> {
         debug!("serializing a graph to request");
         let request = SolveRequest {
             definition: Some(graph.into_definition()),
@@ -84,6 +82,8 @@ impl Bridge {
         debug!("requesting to solve a graph");
         let response = {
             self.client
+                .lock()
+                .await
                 .solve(Request::new(request))
                 .compat()
                 .await
@@ -108,7 +108,7 @@ impl Bridge {
     }
 
     pub async fn read_file<'a, 'b: 'a, P>(
-        &'a mut self,
+        &'a self,
         layer: &'b OutputRef,
         path: P,
         range: Option<FileRange>,
@@ -127,6 +127,8 @@ impl Bridge {
 
         let response = {
             self.client
+                .lock()
+                .await
                 .read_file(Request::new(request))
                 .compat()
                 .await
@@ -139,7 +141,7 @@ impl Bridge {
     }
 
     pub(crate) async fn finish_with_success(
-        mut self,
+        self,
         output: OutputRef,
         config: Option<ImageSpecification>,
     ) -> Result<(), Error> {
@@ -157,18 +159,19 @@ impl Bridge {
             }),
         };
 
-        self.client.r#return(Request::new(request)).compat().await?;
+        self.client
+            .lock()
+            .await
+            .r#return(Request::new(request))
+            .compat()
+            .await?;
 
         // TODO: gracefully shutdown the HTTP/2 connection
 
         Ok(())
     }
 
-    pub(crate) async fn finish_with_error<S>(
-        mut self,
-        code: ErrorCode,
-        message: S,
-    ) -> Result<(), Error>
+    pub(crate) async fn finish_with_error<S>(self, code: ErrorCode, message: S) -> Result<(), Error>
     where
         S: Into<String>,
     {
@@ -182,7 +185,12 @@ impl Bridge {
         };
 
         debug!("sending an error result: {:#?}", request);
-        self.client.r#return(Request::new(request)).compat().await?;
+        self.client
+            .lock()
+            .await
+            .r#return(Request::new(request))
+            .compat()
+            .await?;
 
         // TODO: gracefully shutdown the HTTP/2 connection
 

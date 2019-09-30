@@ -1,6 +1,8 @@
 use std::io::{self, stdin, stdout};
 use std::io::{Error, Read, Write};
 
+use http_connection::HttpConnection;
+use hyper::client::connect::{Connect, Connected, Destination};
 use tokio::prelude::*;
 use tokio::reactor::PollEvented2;
 
@@ -17,6 +19,8 @@ impl StdioSocket {
         })
     }
 }
+
+pub struct StdioConnector;
 
 impl Read for StdioSocket {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
@@ -39,6 +43,18 @@ impl AsyncRead for StdioSocket {}
 impl AsyncWrite for StdioSocket {
     fn shutdown(&mut self) -> Result<Async<()>, Error> {
         self.writer.shutdown()
+    }
+}
+
+impl HttpConnection for StdioSocket {}
+
+impl Connect for StdioConnector {
+    type Transport = StdioSocket;
+    type Error = io::Error;
+    type Future = future::FutureResult<(Self::Transport, Connected), io::Error>;
+
+    fn connect(&self, _: Destination) -> Self::Future {
+        future::result(StdioSocket::try_new().map(|socket| (socket, Connected::new())))
     }
 }
 

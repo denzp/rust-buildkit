@@ -1,0 +1,4 @@
+# syntax = rust-buildkit:reverse-frontend
+
+Hello from the reverse example "dockerfile".
+Every line from this file has to be printed in reverse when you run the resulting image.
