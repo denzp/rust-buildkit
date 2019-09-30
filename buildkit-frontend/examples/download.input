@@ -1,7 +1,7 @@
 # syntax = rust-buildkit:download-frontend
 
-Download "https://github.com/denzp/rust-buildkit/blob/7a72b7f4ef2f57500c7b82db7abac6ae1b8ab982/Cargo.toml" as "Cargo.toml".
-Download "https://github.com/denzp/rust-buildkit/blob/7a72b7f4ef2f57500c7b82db7abac6ae1b8ab982/.github/workflows/rust-ci.yml" as "rust-ci.yml".
+Download "https://raw.githubusercontent.com/denzp/rust-buildkit/7a72b7f4ef2f57500c7b82db7abac6ae1b8ab982/Cargo.toml" as "Cargo.toml".
+Download "https://raw.githubusercontent.com/denzp/rust-buildkit/7a72b7f4ef2f57500c7b82db7abac6ae1b8ab982/.github/workflows/rust-ci.yml" as "rust-ci.yml".
 
 # Our toy frontend can also handle comments!
-Download "https://github.com/denzp/rust-buildkit/blob/7a72b7f4ef2f57500c7b82db7abac6ae1b8ab982/buildkit-llb/examples/scratch.rs" as "scratch.rs".
+Download "https://raw.githubusercontent.com/denzp/rust-buildkit/7a72b7f4ef2f57500c7b82db7abac6ae1b8ab982/buildkit-llb/examples/scratch.rs" as "scratch.rs".
