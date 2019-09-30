@@ -33,6 +33,8 @@ impl Frontend for ReverseFrontend {
     }
 }
 
+const OUTPUT_FILENAME: &str = "/reverse.dockerfile";
+
 impl ReverseFrontend {
     fn image_spec() -> ImageSpecification {
         ImageSpecification {
@@ -43,8 +45,8 @@ impl ReverseFrontend {
             os: OperatingSystem::Linux,
 
             config: Some(ImageConfig {
-                entrypoint: Some(vec![String::from("/bin/cat")]),
-                cmd: Some(vec![String::from("/reverse.dockerfile")]),
+                entrypoint: None,
+                cmd: Some(vec!["/bin/cat".into(), OUTPUT_FILENAME.into()]),
                 env: None,
                 user: None,
                 working_dir: None,
@@ -61,15 +63,16 @@ impl ReverseFrontend {
     }
 
     async fn solve(bridge: &Bridge, dockerfile_path: &str) -> Result<OutputRef, Error> {
-        let dockerfile = Source::local("dockerfile");
-        let alpine = Source::image("alpine:latest");
+        let dockerfile_source = Source::local("dockerfile");
+        let dockerfile_layer = bridge
+            .solve(Terminal::with(dockerfile_source.output()))
+            .await?;
 
-        let dockerfile_layer = bridge.solve(Terminal::with(dockerfile.output())).await?;
         let dockerfile_contents = bridge
             .read_file(&dockerfile_layer, dockerfile_path, None)
             .await?;
 
-        let transformed_dockerfile_contents: String = {
+        let transformed_contents: String = {
             String::from_utf8_lossy(&dockerfile_contents)
                 .lines()
                 .into_iter()
@@ -83,17 +86,17 @@ impl ReverseFrontend {
                 .collect()
         };
 
-        let final_llb = {
-            FileSystem::mkfile(
-                OutputIdx(0),
-                LayerPath::Other(alpine.output(), "/reverse.dockerfile"),
-            )
-            .data(transformed_dockerfile_contents.into_bytes())
-            .into_operation()
+        let llb = {
+            let alpine = Source::image("alpine:latest").ref_counted();
+            let destination = LayerPath::Other(alpine.output(), OUTPUT_FILENAME);
+
+            FileSystem::mkfile(OutputIdx(0), destination)
+                .data(transformed_contents.into_bytes())
+                .into_operation()
+                .ref_counted()
+                .output(0)
         };
 
-        let final_layer = bridge.solve(Terminal::with(final_llb.output(0))).await?;
-
-        Ok(final_layer)
+        bridge.solve(Terminal::with(llb)).await
     }
 }

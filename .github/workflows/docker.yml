@@ -8,4 +8,5 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - run: docker info
-      - run: .ci/test-all-examples.sh
+      - run: .ci/test-reverse-example.sh
+      - run: .ci/test-download-example.sh
