@@ -1,4 +1,4 @@
-name: Docker integration testing
+name: Docker integration
 on: [push]
 
 jobs:
@@ -6,6 +6,6 @@ jobs:
     name: Run examples
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
-    - run: docker info
-    - run: .ci/frontend-integration-tests.sh
+      - uses: actions/checkout@v1
+      - run: docker info
+      - run: .ci/test-all-examples.sh
