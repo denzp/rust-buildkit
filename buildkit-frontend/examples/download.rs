@@ -1,9 +1,7 @@
-#![feature(type_alias_impl_trait)]
-
 use std::path::PathBuf;
 
+use async_trait::async_trait;
 use failure::Error;
-use futures::prelude::*;
 use regex::Regex;
 use url::Url;
 
@@ -22,16 +20,13 @@ async fn main() {
 
 struct ReverseFrontend;
 
+#[async_trait]
 impl Frontend for ReverseFrontend {
-    type RunFuture = impl Future<Output = Result<FrontendOutput, Error>>;
-
-    fn run(self, bridge: Bridge, options: Options) -> Self::RunFuture {
-        async move {
-            Ok(FrontendOutput::with_spec_and_ref(
-                Self::image_spec(),
-                Self::solve(&bridge, options.get("filename").unwrap()).await?,
-            ))
-        }
+    async fn run(self, bridge: Bridge, options: Options) -> Result<FrontendOutput, Error> {
+        Ok(FrontendOutput::with_spec_and_ref(
+            Self::image_spec(),
+            Self::solve(&bridge, options.get("filename").unwrap()).await?,
+        ))
     }
 }
 

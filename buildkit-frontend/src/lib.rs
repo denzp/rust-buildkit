@@ -1,9 +1,9 @@
 #![deny(warnings)]
 #![deny(clippy::all)]
 
+use async_trait::async_trait;
 use failure::{Error, ResultExt};
 use futures::compat::*;
-use futures::prelude::*;
 use hyper::client::connect::Destination;
 use log::*;
 use tower_hyper::{client, util};
@@ -25,10 +25,9 @@ pub use self::options::Options;
 pub use self::stdio::{StdioConnector, StdioSocket};
 pub use self::utils::{ErrorWithCauses, OutputRef};
 
+#[async_trait]
 pub trait Frontend {
-    type RunFuture: Future<Output = Result<FrontendOutput, Error>>;
-
-    fn run(self, bridge: Bridge, options: Options) -> Self::RunFuture;
+    async fn run(self, bridge: Bridge, options: Options) -> Result<FrontendOutput, Error>;
 }
 
 pub struct FrontendOutput {
