@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2019-10-19
+### Added
+- `Options::iter` method to get a list for values.
+
 ## [0.2.0] - 2019-10-06
 ### Added
 - Example frontends and integration testing.

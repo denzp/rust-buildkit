@@ -83,6 +83,20 @@ impl Options {
         }
     }
 
+    pub fn iter<S>(&self, name: S) -> Option<impl Iterator<Item = &str>>
+    where
+        S: AsRef<str>,
+    {
+        match self.inner.get(name.as_ref()) {
+            Some(container) => match container {
+                OptionValue::Flag(_) => None,
+                OptionValue::Arguments(values) => Some(values.iter().map(String::as_str)),
+            },
+
+            None => None,
+        }
+    }
+
     fn extract_name_and_value(mut raw_value: String) -> (String, OptionValue) {
         if raw_value.starts_with("build-arg:") {
             raw_value = raw_value.trim_start_matches("build-arg:").into();
@@ -246,4 +260,23 @@ fn has_value_method() {
     assert_eq!(options.has_value("option3", "false"), true);
     assert_eq!(options.has_value("option3", "any_other"), true);
     assert_eq!(options.has_value("option3", "missing"), false);
+}
+
+#[test]
+fn iter_method() {
+    let options = Options::from(
+        vec!["option1", "option2=true", "option3=true,false,any_other"]
+            .into_iter()
+            .map(String::from),
+    );
+
+    assert!(options.iter("option1").is_none());
+    assert!(options.iter("option2").is_none());
+    assert!(options.iter("option4").is_none());
+
+    assert!(options.iter("option3").is_some());
+    assert_eq!(
+        options.iter("option3").unwrap().collect::<Vec<_>>(),
+        vec!["true", "false", "any_other"]
+    );
 }
