@@ -1,8 +1,10 @@
 mod git;
+mod http;
 mod image;
 mod local;
 
 pub use self::git::GitSource;
+pub use self::http::HttpSource;
 pub use self::image::{ImageSource, ResolveMode};
 pub use self::local::LocalSource;
 
@@ -30,5 +32,12 @@ impl Source {
         S: Into<String>,
     {
         LocalSource::new(name)
+    }
+
+    pub fn http<S>(name: S) -> HttpSource
+    where
+        S: Into<String>,
+    {
+        HttpSource::new(name)
     }
 }
