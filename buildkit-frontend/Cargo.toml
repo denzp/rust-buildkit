@@ -1,6 +1,6 @@
 [package]
 name = "buildkit-frontend"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
 edition = "2018"
 
@@ -14,7 +14,7 @@ license = "MIT/Apache-2.0"
 
 [dependencies]
 async-trait = "0.1"
-csv = "1.1"
+either = "1.5"
 failure = "0.1"
 http-connection = "0.1"
 hyper = "0.12"
