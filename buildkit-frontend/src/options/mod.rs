@@ -85,7 +85,7 @@ mod tests {
             ),
             ("BUILDKIT_FRONTEND_OPT_1".into(), "debug=all".into()),
             (
-                "BUILDKIT_FRONTEND_OPT_3".into(),
+                "BUILDKIT_FRONTEND_OPT_2".into(),
                 "verbosity=12345678".into(),
             ),
         ];
@@ -96,6 +96,27 @@ mod tests {
                 filename: None,
                 verbosity: 12_345_678,
                 debug: vec![Debug::All],
+                cache_imports: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn empty_cache() {
+        let env = vec![
+            ("BUILDKIT_FRONTEND_OPT_1".into(), "cache-imports=".into()),
+            (
+                "BUILDKIT_FRONTEND_OPT_2".into(),
+                "verbosity=12345678".into(),
+            ),
+        ];
+
+        assert_eq!(
+            from_env::<CustomOptions, _>(env.into_iter()).unwrap(),
+            CustomOptions {
+                filename: None,
+                verbosity: 12_345_678,
+                debug: vec![],
                 cache_imports: vec![],
             }
         );

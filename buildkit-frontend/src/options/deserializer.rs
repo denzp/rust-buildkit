@@ -1,5 +1,5 @@
 use std::io::Cursor;
-use std::iter::once;
+use std::iter::empty;
 
 use failure::Error;
 use serde::de::value::{MapDeserializer, SeqDeserializer};
@@ -169,7 +169,7 @@ impl<'de> de::Deserializer<'de> for EnvValue<'de> {
 
     fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self {
-            EnvValue::Flag => SeqDeserializer::new(once(true)).deserialize_seq(visitor),
+            EnvValue::Flag => SeqDeserializer::new(empty::<&'de str>()).deserialize_seq(visitor),
             EnvValue::Json(contents) => EnvItem(contents).json(visitor),
             EnvValue::Text(contents) => {
                 SeqDeserializer::new(contents.split(',')).deserialize_seq(visitor)
