@@ -22,6 +22,7 @@ pub use buildkit_proto::moby::buildkit::v1::frontend::FileRange;
 
 use crate::error::ErrorCode;
 use crate::oci::ImageSpecification;
+use crate::options::common::CacheOptionsEntry;
 use crate::utils::OutputRef;
 
 type BridgeConnection = tower_request_modifier::RequestModifier<Connection<BoxBody>, BoxBody>;
@@ -70,15 +71,25 @@ impl Bridge {
     }
 
     pub async fn solve<'a, 'b: 'a>(&'a self, graph: Terminal<'b>) -> Result<OutputRef, Error> {
+        self.solve_with_cache(graph, &[]).await
+    }
+
+    pub async fn solve_with_cache<'a, 'b: 'a>(
+        &'a self,
+        graph: Terminal<'b>,
+        cache: &[CacheOptionsEntry],
+    ) -> Result<OutputRef, Error> {
         debug!("serializing a graph to request");
         let request = SolveRequest {
             definition: Some(graph.into_definition()),
             exporter_attr: vec![],
             allow_result_return: true,
+            cache_imports: cache.iter().cloned().map(Into::into).collect(),
 
             ..Default::default()
         };
 
+        debug!("solving with cache from: {:?}", cache);
         debug!("requesting to solve a graph");
         let response = {
             self.client

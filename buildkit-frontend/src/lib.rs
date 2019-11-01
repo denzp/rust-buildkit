@@ -6,16 +6,17 @@ use failure::{Error, ResultExt};
 use futures::compat::*;
 use hyper::client::connect::Destination;
 use log::*;
+use serde::de::DeserializeOwned;
 use tower_hyper::{client, util};
 use tower_util::MakeService;
 
 mod bridge;
 mod error;
-mod options;
 mod stdio;
 mod utils;
 
 pub mod oci;
+pub mod options;
 
 use oci::ImageSpecification;
 
@@ -26,8 +27,11 @@ pub use self::stdio::{StdioConnector, StdioSocket};
 pub use self::utils::{ErrorWithCauses, OutputRef};
 
 #[async_trait]
-pub trait Frontend {
-    async fn run(self, bridge: Bridge, options: Options) -> Result<FrontendOutput, Error>;
+pub trait Frontend<O = Options>
+where
+    O: DeserializeOwned,
+{
+    async fn run(self, bridge: Bridge, options: O) -> Result<FrontendOutput, Error>;
 }
 
 pub struct FrontendOutput {
@@ -51,7 +55,11 @@ impl FrontendOutput {
     }
 }
 
-pub async fn run_frontend<F: Frontend>(frontend: F) -> Result<(), Error> {
+pub async fn run_frontend<F, O>(frontend: F) -> Result<(), Error>
+where
+    F: Frontend<O>,
+    O: DeserializeOwned,
+{
     let connector = util::Connector::new(StdioConnector);
     let settings = client::Builder::new().http2_only(true).clone();
 
@@ -66,10 +74,8 @@ pub async fn run_frontend<F: Frontend>(frontend: F) -> Result<(), Error> {
     };
 
     let bridge = Bridge::new(connection);
-    let options = Options::analyse();
 
-    debug!("running a frontend entrypoint");
-    match frontend.run(bridge.clone(), options).await {
+    match frontend_entrypoint(&bridge, frontend).await {
         Ok(output) => {
             bridge
                 .finish_with_success(output.output, output.image_spec)
@@ -96,4 +102,15 @@ pub async fn run_frontend<F: Frontend>(frontend: F) -> Result<(), Error> {
     // TODO: gracefully shutdown the HTTP/2 connection
 
     Ok(())
+}
+
+async fn frontend_entrypoint<F, O>(bridge: &Bridge, frontend: F) -> Result<FrontendOutput, Error>
+where
+    F: Frontend<O>,
+    O: DeserializeOwned,
+{
+    let options = options::from_env(std::env::vars()).context("Unable to parse options")?;
+
+    debug!("running a frontend entrypoint");
+    frontend.run(bridge.clone(), options).await
 }

@@ -3,36 +3,53 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 use failure::Error;
 use regex::Regex;
+use serde::Deserialize;
 use url::Url;
 
 use buildkit_frontend::oci::*;
+use buildkit_frontend::options::common::CacheOptionsEntry;
 use buildkit_frontend::run_frontend;
-use buildkit_frontend::{Bridge, Frontend, FrontendOutput, Options, OutputRef};
+use buildkit_frontend::{Bridge, Frontend, FrontendOutput, OutputRef};
 
 use buildkit_llb::prelude::*;
 
 #[runtime::main(runtime_tokio::Tokio)]
 async fn main() {
-    if let Err(_) = run_frontend(ReverseFrontend).await {
+    if let Err(_) = run_frontend(DownloadFrontend).await {
         std::process::exit(1);
     }
 }
 
-struct ReverseFrontend;
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+struct DownloadOptions {
+    filename: PathBuf,
+
+    /// New approach to specify cache imports.
+    #[serde(default)]
+    cache_imports: Vec<CacheOptionsEntry>,
+
+    /// Legacy convention to specify cache imports.
+    #[serde(default)]
+    #[serde(deserialize_with = "CacheOptionsEntry::from_legacy_list")]
+    cache_from: Vec<CacheOptionsEntry>,
+}
+
+struct DownloadFrontend;
 
 #[async_trait]
-impl Frontend for ReverseFrontend {
-    async fn run(self, bridge: Bridge, options: Options) -> Result<FrontendOutput, Error> {
+impl Frontend<DownloadOptions> for DownloadFrontend {
+    async fn run(self, bridge: Bridge, options: DownloadOptions) -> Result<FrontendOutput, Error> {
         Ok(FrontendOutput::with_spec_and_ref(
             Self::image_spec(),
-            Self::solve(&bridge, options.get("filename").unwrap()).await?,
+            Self::solve(&bridge, options).await?,
         ))
     }
 }
 
 const OUTPUT_DIR: &str = "/opt";
 
-impl ReverseFrontend {
+impl DownloadFrontend {
     fn image_spec() -> ImageSpecification {
         ImageSpecification {
             created: None,
@@ -59,7 +76,7 @@ impl ReverseFrontend {
         }
     }
 
-    async fn solve(bridge: &Bridge, dockerfile_path: &str) -> Result<OutputRef, Error> {
+    async fn solve(bridge: &Bridge, options: DownloadOptions) -> Result<OutputRef, Error> {
         let dockerfile_source = Source::local("dockerfile");
         let dockerfile_layer = bridge
             .solve(Terminal::with(dockerfile_source.output()))
@@ -67,12 +84,15 @@ impl ReverseFrontend {
 
         let dockerfile_contents = String::from_utf8(
             bridge
-                .read_file(&dockerfile_layer, dockerfile_path, None)
+                .read_file(&dockerfile_layer, &options.filename, None)
                 .await?,
         )?;
 
         bridge
-            .solve(Terminal::with(Self::construct_llb(dockerfile_contents)?))
+            .solve_with_cache(
+                Terminal::with(Self::construct_llb(dockerfile_contents)?),
+                options.cache_entries(),
+            )
             .await
     }
 
@@ -130,5 +150,15 @@ impl ReverseFrontend {
             let captures = cmd_regex.captures(&line)?;
             Some(Url::parse(&captures[1]).map(|url| (url, captures[2].into())))
         })
+    }
+}
+
+impl DownloadOptions {
+    pub fn cache_entries(&self) -> &[CacheOptionsEntry] {
+        if !self.cache_imports.is_empty() {
+            return &self.cache_imports;
+        }
+
+        &self.cache_from
     }
 }
