@@ -1,56 +1,73 @@
 name: CI
-on: [push]
+on:
+  pull_request:
+    branches:
+      - master
+
+  push:
+    branches:
+      - master
 
 jobs:
   test:
-    name: Run Cargo tests
+    name: Unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - name: Checkout sources
+        uses: actions/checkout@v1
+
+      - name: Install Rust nightly toolchain
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           override: true
-      - uses: actions-rs/cargo@v1
+
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose
 
   fmt:
     name: Formatting lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/components-nightly@v1
-        id: component
+      - name: Checkout sources
+        uses: actions/checkout@v1
+
+      - name: Install Rust nightly toolchain
+        uses: actions-rs/toolchain@v1
         with:
-          target: x86_64-unknown-linux-gnu
-          component: rustfmt
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ steps.component.outputs.toolchain }}
+          toolchain: nightly
+          components: rustfmt
           override: true
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
+
+      - name: Install rustfmt
+        run: rustup component add rustfmt
+
+      - name: Check the formatting
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
 
   clippy:
-    name: Clippy lint
+    name: Clippy lints
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/components-nightly@v1
-        id: component
+      - name: Checkout sources
+        uses: actions/checkout@v1
+
+      - name: Install Rust nightly toolchain
+        uses: actions-rs/toolchain@v1
         with:
-          target: x86_64-unknown-linux-gnu
-          component: clippy
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ steps.component.outputs.toolchain }}
+          toolchain: nightly
+          components: clippy
           override: true
-      - run: rustup component add clippy
-      - uses: actions-rs/cargo@v1
+
+      - name: Install clippy
+        run: rustup component add clippy
+
+      - name: Check with clippy
+        uses: actions-rs/clippy-check@v1
         with:
-          command: clippy
+          token: ${{ secrets.GITHUB_TOKEN }}
