@@ -5,10 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- `ImageSource::with_tag` method.
+
+### Changed
+- `Source::image` behavior to conform Docker.
 
 ## [0.1.1] - 2019-10-22
 ### Added
-- `with_reference` method of Git source.
+- `GitSource::with_reference` method.
 - HTTP source.
 
 ## [0.1.0] - 2019-09-24

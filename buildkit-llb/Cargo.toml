@@ -15,9 +15,11 @@ license = "MIT/Apache-2.0"
 [dependencies]
 either = "1.5"
 failure = "0.1"
+lazy_static = "1"
 log = "0.4"
 prost = "0.5"
 prost-types = "0.5"
+regex = "1"
 serde_json = "1.0"
 sha2 = "0.8"
 

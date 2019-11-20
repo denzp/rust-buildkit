@@ -3,6 +3,8 @@ use std::fmt;
 use std::sync::Arc;
 
 use buildkit_proto::pb::{self, op::Op, OpMetadata, SourceOp};
+use lazy_static::*;
+use regex::Regex;
 
 use crate::ops::{OperationBuilder, SingleBorrowedOutput, SingleOwnedOutput};
 use crate::serialization::{Context, Node, Operation, OperationId, Result};
@@ -11,11 +13,15 @@ use crate::utils::{OperationOutput, OutputIdx};
 #[derive(Debug)]
 pub struct ImageSource {
     id: OperationId,
+
+    domain: Option<String>,
     name: String,
+    tag: Option<String>,
+    digest: Option<String>,
+
     description: HashMap<String, String>,
     ignore_cache: bool,
     resolve_mode: Option<ResolveMode>,
-    digest: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -41,34 +47,78 @@ impl Default for ResolveMode {
     }
 }
 
+lazy_static! {
+    static ref TAG_EXPR: Regex = Regex::new(r":[\w][\w.-]+$").unwrap();
+}
+
 impl ImageSource {
+    // The implementation is based on:
+    // https://github.com/containerd/containerd/blob/614c0858f2a8db9ee0c788a9164870069f3e53ed/reference/docker/reference.go
     pub(crate) fn new<S>(name: S) -> Self
     where
         S: Into<String>,
     {
         let mut name = name.into();
 
-        let tag_separator = match name.find(':') {
-            Some(len) => len,
-            None => {
-                let original_len = name.len();
-
-                name += ":latest";
-                original_len
-            }
+        let (digest, digest_separator) = match name.find('@') {
+            Some(pos) => (Some(name[pos + 1..].into()), pos),
+            None => (None, name.len()),
         };
 
-        if name[..tag_separator].find('/').is_none() {
-            name = String::from("library/") + &name;
+        name.truncate(digest_separator);
+
+        let (tag, tag_separator) = match TAG_EXPR.find(&name) {
+            Some(found) => (Some(name[found.start() + 1..].into()), found.start()),
+            None => (None, name.len()),
+        };
+
+        name.truncate(tag_separator);
+
+        let (domain, mut name) = match name.find('/') {
+            // The input has canonical-like format.
+            Some(separator_pos) if &name[..separator_pos] == "docker.io" => {
+                (None, name[separator_pos + 1..].into())
+            }
+
+            // Special case when domain is "localhost".
+            Some(separator_pos) if &name[..separator_pos] == "localhost" => {
+                (Some("localhost".into()), name[separator_pos + 1..].into())
+            }
+
+            // General case for a common domain.
+            Some(separator_pos) if name[..separator_pos].find('.').is_some() => (
+                Some(name[..separator_pos].into()),
+                name[separator_pos + 1..].into(),
+            ),
+
+            // General case for a domain with port number.
+            Some(separator_pos) if name[..separator_pos].find(':').is_some() => (
+                Some(name[..separator_pos].into()),
+                name[separator_pos + 1..].into(),
+            ),
+
+            // Fallback if the first component is not a domain name.
+            Some(_) => (None, name),
+
+            // Fallback if only single url component present.
+            None => (None, name),
+        };
+
+        if domain.is_none() && name.find('/').is_none() {
+            name = format!("library/{}", name);
         }
 
         Self {
             id: OperationId::default(),
-            name: format!("docker.io/{}", name),
+
+            domain,
+            name,
+            tag,
+            digest,
+
             description: Default::default(),
             ignore_cache: false,
             resolve_mode: None,
-            digest: None,
         }
     }
 
@@ -89,8 +139,29 @@ impl ImageSource {
         self
     }
 
-    pub fn canonical_name(&self) -> &str {
-        &self.name
+    pub fn with_tag<S>(mut self, tag: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.tag = Some(tag.into());
+        self
+    }
+
+    pub fn canonical_name(&self) -> String {
+        let domain = match self.domain {
+            Some(ref domain) => domain,
+            None => "docker.io",
+        };
+
+        let tag = match self.tag {
+            Some(ref tag) => tag,
+            None => "latest",
+        };
+
+        match self.digest {
+            Some(ref digest) => format!("{}/{}:{}@{}", domain, self.name, tag, digest),
+            None => format!("{}/{}:{}", domain, self.name, tag),
+        }
     }
 }
 
@@ -137,12 +208,7 @@ impl Operation for ImageSource {
 
         let head = pb::Op {
             op: Some(Op::Source(SourceOp {
-                identifier: match self.digest {
-                    None => format!("docker-image://{}", self.canonical_name()),
-                    Some(ref digest) => {
-                        format!("docker-image://{}@{}", self.canonical_name(), digest)
-                    }
-                },
+                identifier: format!("docker-image://{}", self.canonical_name()),
                 attrs,
             })),
 
@@ -294,9 +360,117 @@ fn image_name() {
         })
     });
 
-    crate::check_op!(ImageSource::new("rust:complex/tag"), |op| {
+    crate::check_op!(ImageSource::new("library/rust"), |op| {
         Op::Source(SourceOp {
-            identifier: "docker-image://docker.io/library/rust:complex/tag".into(),
+            identifier: "docker-image://docker.io/library/rust:latest".into(),
+            attrs: Default::default(),
+        })
+    });
+
+    crate::check_op!(ImageSource::new("rust:obj@sha256:abcdef"), |op| {
+        Op::Source(SourceOp {
+            identifier: "docker-image://docker.io/library/rust:obj@sha256:abcdef".into(),
+            attrs: Default::default(),
+        })
+    });
+
+    crate::check_op!(ImageSource::new("rust@sha256:abcdef"), |op| {
+        Op::Source(SourceOp {
+            identifier: "docker-image://docker.io/library/rust:latest@sha256:abcdef".into(),
+            attrs: Default::default(),
+        })
+    });
+
+    crate::check_op!(ImageSource::new("rust:obj@abcdef"), |op| {
+        Op::Source(SourceOp {
+            identifier: "docker-image://docker.io/library/rust:obj@abcdef".into(),
+            attrs: Default::default(),
+        })
+    });
+
+    crate::check_op!(
+        ImageSource::new("b.gcr.io/test.example.com/my-app:test.example.com"),
+        |op| {
+            Op::Source(SourceOp {
+                identifier: "docker-image://b.gcr.io/test.example.com/my-app:test.example.com"
+                    .into(),
+                attrs: Default::default(),
+            })
+        }
+    );
+
+    crate::check_op!(
+        ImageSource::new("sub-dom1.foo.com/bar/baz/quux:some-long-tag"),
+        |op| {
+            Op::Source(SourceOp {
+                identifier: "docker-image://sub-dom1.foo.com/bar/baz/quux:some-long-tag".into(),
+                attrs: Default::default(),
+            })
+        }
+    );
+
+    crate::check_op!(
+        ImageSource::new("sub-dom1.foo.com/quux:some-long-tag"),
+        |op| {
+            Op::Source(SourceOp {
+                identifier: "docker-image://sub-dom1.foo.com/quux:some-long-tag".into(),
+                attrs: Default::default(),
+            })
+        }
+    );
+
+    crate::check_op!(ImageSource::new("localhost/rust:obj"), |op| {
+        Op::Source(SourceOp {
+            identifier: "docker-image://localhost/rust:obj".into(),
+            attrs: Default::default(),
+        })
+    });
+
+    crate::check_op!(ImageSource::new("127.0.0.1/rust:obj"), |op| {
+        Op::Source(SourceOp {
+            identifier: "docker-image://127.0.0.1/rust:obj".into(),
+            attrs: Default::default(),
+        })
+    });
+
+    crate::check_op!(ImageSource::new("localhost:5000/rust:obj"), |op| {
+        Op::Source(SourceOp {
+            identifier: "docker-image://localhost:5000/rust:obj".into(),
+            attrs: Default::default(),
+        })
+    });
+
+    crate::check_op!(ImageSource::new("127.0.0.1:5000/rust:obj"), |op| {
+        Op::Source(SourceOp {
+            identifier: "docker-image://127.0.0.1:5000/rust:obj".into(),
+            attrs: Default::default(),
+        })
+    });
+
+    crate::check_op!(ImageSource::new("localhost:5000/rust"), |op| {
+        Op::Source(SourceOp {
+            identifier: "docker-image://localhost:5000/rust:latest".into(),
+            attrs: Default::default(),
+        })
+    });
+
+    crate::check_op!(ImageSource::new("127.0.0.1:5000/rust"), |op| {
+        Op::Source(SourceOp {
+            identifier: "docker-image://127.0.0.1:5000/rust:latest".into(),
+            attrs: Default::default(),
+        })
+    });
+
+    crate::check_op!(ImageSource::new("docker.io/rust"), |op| {
+        Op::Source(SourceOp {
+            identifier: "docker-image://docker.io/library/rust:latest".into(),
+            attrs: Default::default(),
+        })
+    });
+
+    crate::check_op!(ImageSource::new("docker.io/library/rust"), |op| {
+        Op::Source(SourceOp {
+            identifier: "docker-image://docker.io/library/rust:latest".into(),
             attrs: Default::default(),
         })
     });

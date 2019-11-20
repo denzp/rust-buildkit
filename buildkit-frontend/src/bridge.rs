@@ -45,7 +45,7 @@ impl Bridge {
         log: Option<&str>,
     ) -> Result<(String, ImageSpecification), Error> {
         let request = ResolveImageConfigRequest {
-            r#ref: image.canonical_name().into(),
+            r#ref: image.canonical_name(),
             platform: None,
             resolve_mode: image.resolve_mode().unwrap_or_default().to_string(),
             log_name: log.unwrap_or_default().into(),
