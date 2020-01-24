@@ -115,6 +115,10 @@ impl<'a> Command<'a> {
                 self.caps.insert("exec.mount.cache".into(), true);
                 self.caps.insert("exec.mount.cache.sharing".into(), true);
             }
+
+            Mount::OptionalSshAgent(..) => {
+                self.caps.insert("exec.mount.ssh".into(), true);
+            }
         }
 
         if mount.is_root() {
@@ -235,6 +239,27 @@ impl<'a> Operation for Command<'a> {
 
                             return (Either::Right(empty()), mount);
                         }
+
+                        Mount::OptionalSshAgent(path) => {
+                            use buildkit_proto::pb::SshOpt;
+
+                            let mount = pb::Mount {
+                                input: -1,
+                                dest: path.to_string_lossy().into(),
+                                output: -1,
+                                mount_type: MountType::Ssh as i32,
+
+                                ssh_opt: Some(SshOpt {
+                                    mode: 0o600,
+                                    optional: true,
+                                    ..Default::default()
+                                }),
+
+                                ..Default::default()
+                            };
+
+                            return (Either::Right(empty()), mount);
+                        }
                     };
 
                     let input = match mount {
@@ -247,6 +272,10 @@ impl<'a> Operation for Command<'a> {
                         }
 
                         Mount::Scratch(..) => {
+                            unreachable!();
+                        }
+
+                        Mount::OptionalSshAgent(..) => {
                             unreachable!();
                         }
                     };

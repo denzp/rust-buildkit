@@ -1,0 +1,5 @@
+# syntax = rust-buildkit:ssh-mount-frontend
+
+REPO: ssh://git@github.com/BurntSushi/ripgrep.git
+TAG:  0.10.0
+TEST: rg --version | head -1

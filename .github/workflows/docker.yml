@@ -7,6 +7,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
+      - uses: webfactory/ssh-agent@v0.2.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
       - run: docker info
       - run: .ci/test-reverse-example.sh
       - run: .ci/test-download-example.sh
+      - run: .ci/test-ssh-mount-example.sh

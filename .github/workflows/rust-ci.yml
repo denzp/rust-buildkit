@@ -16,10 +16,10 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v1
 
-      - name: Install Rust nightly toolchain
+      - name: Install Rust stable toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           override: true
 
       - name: Run cargo test
@@ -34,10 +34,10 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v1
 
-      - name: Install Rust nightly toolchain
+      - name: Install Rust stable toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           components: rustfmt
           override: true
 
@@ -57,10 +57,10 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v1
 
-      - name: Install Rust nightly toolchain
+      - name: Install Rust stable toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           components: clippy
           override: true
 

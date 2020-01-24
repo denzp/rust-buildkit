@@ -367,3 +367,74 @@ fn serialization_with_several_root_mounts() {
         },
     );
 }
+
+#[test]
+fn serialization_with_ssh_mounts() {
+    use crate::prelude::*;
+    use buildkit_proto::pb::{op::Op, ExecOp, Meta, MountType, NetMode, SecurityMode, SshOpt};
+
+    let builder_image = Source::image("rustlang/rust:nightly");
+    let command = Command::run("cargo")
+        .args(&["build"])
+        .mount(Mount::ReadOnlyLayer(builder_image.output(), "/"))
+        .mount(Mount::OptionalSshAgent("/run/buildkit/ssh_agent.0"));
+
+    crate::check_op!(
+        command,
+        |digest| { "sha256:1ac1438c67a153878f21fe8067383fd7544901261374eb53ba8bf26e9a5821a5" },
+        |description| { vec![] },
+        |caps| { vec!["exec.mount.bind", "exec.mount.ssh"] },
+        |cached_tail| {
+            vec!["sha256:dee2a3d7dd482dd8098ba543ff1dcb01efd29fcd16fdb0979ef556f38564543a"]
+        },
+        |inputs| {
+            vec![(
+                "sha256:dee2a3d7dd482dd8098ba543ff1dcb01efd29fcd16fdb0979ef556f38564543a",
+                0,
+            )]
+        },
+        |op| {
+            Op::Exec(ExecOp {
+                mounts: vec![
+                    pb::Mount {
+                        input: 0,
+                        selector: "".into(),
+                        dest: "/".into(),
+                        output: -1,
+                        readonly: true,
+                        mount_type: MountType::Bind.into(),
+                        cache_opt: None,
+                        secret_opt: None,
+                        ssh_opt: None,
+                    },
+                    pb::Mount {
+                        input: -1,
+                        selector: "".into(),
+                        dest: "/run/buildkit/ssh_agent.0".into(),
+                        output: -1,
+                        readonly: false,
+                        mount_type: MountType::Ssh.into(),
+                        cache_opt: None,
+                        secret_opt: None,
+                        ssh_opt: Some(SshOpt {
+                            mode: 0o600,
+                            optional: true,
+                            ..Default::default()
+                        }),
+                    },
+                ],
+                network: NetMode::Unset.into(),
+                security: SecurityMode::Sandbox.into(),
+                meta: Some(Meta {
+                    args: crate::utils::test::to_vec(vec!["cargo", "build"]),
+                    env: vec![],
+                    cwd: "/".into(),
+                    user: "root".into(),
+
+                    extra_hosts: vec![],
+                    proxy_env: None,
+                }),
+            })
+        },
+    );
+}
