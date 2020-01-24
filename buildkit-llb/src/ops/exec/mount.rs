@@ -19,6 +19,9 @@ pub enum Mount<'a, P: AsRef<Path>> {
 
     /// Writable persistent cache.
     SharedCache(P),
+
+    /// Optional SSH agent socket at the specified path.
+    OptionalSshAgent(P),
 }
 
 impl<'a, P: AsRef<Path>> Mount<'a, P> {
@@ -35,6 +38,7 @@ impl<'a, P: AsRef<Path>> Mount<'a, P> {
             Scratch(output, path) => Scratch(output, path.as_ref().into()),
             Layer(output, input, path) => Layer(output, input, path.as_ref().into()),
             SharedCache(path) => SharedCache(path.as_ref().into()),
+            OptionalSshAgent(path) => OptionalSshAgent(path.as_ref().into()),
         }
     }
 
@@ -47,6 +51,7 @@ impl<'a, P: AsRef<Path>> Mount<'a, P> {
             Scratch(_, path) => path,
             Layer(_, _, path) => path,
             SharedCache(path) => path,
+            OptionalSshAgent(_) => return false,
         };
 
         path.as_ref() == Path::new("/")

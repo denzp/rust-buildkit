@@ -10,3 +10,4 @@ jobs:
       - run: docker info
       - run: .ci/test-reverse-example.sh
       - run: .ci/test-download-example.sh
+      - run: .ci/test-ssh-mount-example.sh
