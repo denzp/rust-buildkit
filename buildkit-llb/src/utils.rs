@@ -111,18 +111,25 @@ pub mod test {
     #[macro_export]
     macro_rules! check_op_property {
         ($serialized:expr, $context:expr, op, $value:expr) => {{
-            use buildkit_proto::pb;
-            use prost::Message;
+            use std::io::Cursor;
 
-            assert_eq!(pb::Op::decode(&$serialized.bytes).unwrap().op, Some($value));
-        }};
-
-        ($serialized:expr, $context:expr, inputs, $value:expr) => {{
             use buildkit_proto::pb;
             use prost::Message;
 
             assert_eq!(
-                pb::Op::decode(&$serialized.bytes)
+                pb::Op::decode(Cursor::new(&$serialized.bytes)).unwrap().op,
+                Some($value)
+            );
+        }};
+
+        ($serialized:expr, $context:expr, inputs, $value:expr) => {{
+            use std::io::Cursor;
+
+            use buildkit_proto::pb;
+            use prost::Message;
+
+            assert_eq!(
+                pb::Op::decode(Cursor::new(&$serialized.bytes))
                     .unwrap()
                     .inputs
                     .into_iter()
