@@ -1,9 +1,11 @@
-const PROTOS: &[&str] = &["proto/github.com/moby/buildkit/frontend/gateway/pb/gateway.proto"];
+const DEFS: &[&str] = &["proto/github.com/moby/buildkit/frontend/gateway/pb/gateway.proto"];
+const PATHS: &[&str] = &["proto"];
 
-fn main() {
-    tower_grpc_build::Config::new()
-        .enable_server(true)
-        .enable_client(true)
-        .build(PROTOS, &["proto"])
-        .unwrap_or_else(|e| panic!("protobuf compilation failed: {}", e));
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tonic_build::configure()
+        .build_client(true)
+        .build_server(false)
+        .compile(DEFS, PATHS)?;
+
+    Ok(())
 }

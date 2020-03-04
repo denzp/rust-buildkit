@@ -7,8 +7,10 @@ use buildkit_frontend::{Bridge, Frontend, FrontendOutput, Options, OutputRef};
 
 use buildkit_llb::prelude::*;
 
-#[runtime::main(runtime_tokio::Tokio)]
+#[tokio::main(basic_scheduler)]
 async fn main() {
+    env_logger::init();
+
     if let Err(_) = run_frontend(ReverseFrontend).await {
         std::process::exit(1);
     }

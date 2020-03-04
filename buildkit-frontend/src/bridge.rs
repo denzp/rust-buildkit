@@ -3,17 +3,17 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use failure::{bail, format_err, Error, ResultExt};
-use futures::compat::*;
-use futures::lock::Mutex;
 use log::*;
+use tokio::sync::Mutex;
 
-use tower_grpc::{BoxBody, Request};
-use tower_hyper::client::Connection;
+use tonic::transport::channel::Channel;
+use tonic::Request;
 
 use buildkit_proto::google::rpc::Status;
+use buildkit_proto::moby::buildkit::v1::frontend::llb_bridge_client::LlbBridgeClient;
 use buildkit_proto::moby::buildkit::v1::frontend::{
-    client, result::Result as RefResult, ReadFileRequest, ResolveImageConfigRequest,
-    Result as Output, ReturnRequest, SolveRequest,
+    result::Result as RefResult, ReadFileRequest, ResolveImageConfigRequest, Result as Output,
+    ReturnRequest, SolveRequest,
 };
 
 pub use buildkit_llb::ops::source::{ImageSource, ResolveMode};
@@ -25,17 +25,15 @@ use crate::oci::ImageSpecification;
 use crate::options::common::CacheOptionsEntry;
 use crate::utils::OutputRef;
 
-type BridgeConnection = tower_request_modifier::RequestModifier<Connection<BoxBody>, BoxBody>;
-
 #[derive(Clone)]
 pub struct Bridge {
-    client: Arc<Mutex<client::LlbBridge<BridgeConnection>>>,
+    client: Arc<Mutex<LlbBridgeClient<Channel>>>,
 }
 
 impl Bridge {
-    pub(crate) fn new(client: BridgeConnection) -> Self {
+    pub(crate) fn new(channel: Channel) -> Self {
         Self {
-            client: Arc::new(Mutex::new(client::LlbBridge::new(client))),
+            client: Arc::new(Mutex::new(LlbBridgeClient::new(channel))),
         }
     }
 
@@ -57,7 +55,6 @@ impl Bridge {
                 .lock()
                 .await
                 .resolve_image_config(Request::new(request))
-                .compat()
                 .await
                 .unwrap()
                 .into_inner()
@@ -96,7 +93,6 @@ impl Bridge {
                 .lock()
                 .await
                 .solve(Request::new(request))
-                .compat()
                 .await
                 .context("Unable to solve the graph")?
                 .into_inner()
@@ -141,7 +137,6 @@ impl Bridge {
                 .lock()
                 .await
                 .read_file(Request::new(request))
-                .compat()
                 .await
                 .context("Unable to read the file")?
                 .into_inner()
@@ -174,7 +169,6 @@ impl Bridge {
             .lock()
             .await
             .r#return(Request::new(request))
-            .compat()
             .await?;
 
         // TODO: gracefully shutdown the HTTP/2 connection
@@ -200,7 +194,6 @@ impl Bridge {
             .lock()
             .await
             .r#return(Request::new(request))
-            .compat()
             .await?;
 
         // TODO: gracefully shutdown the HTTP/2 connection

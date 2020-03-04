@@ -1,60 +1,54 @@
 use std::io::{self, stdin, stdout};
-use std::io::{Error, Read, Write};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
-use http_connection::HttpConnection;
-use hyper::client::connect::{Connect, Connected, Destination};
-use tokio::prelude::*;
-use tokio::reactor::PollEvented2;
+use pin_project::pin_project;
+use tokio::io::*;
+use tonic::transport::Uri;
 
+#[pin_project]
 pub struct StdioSocket {
-    reader: PollEvented2<async_stdio::EventedStdin>,
-    writer: PollEvented2<async_stdio::EventedStdout>,
+    #[pin]
+    reader: PollEvented<async_stdio::EventedStdin>,
+
+    #[pin]
+    writer: PollEvented<async_stdio::EventedStdout>,
+}
+
+pub async fn stdio_connector(_: Uri) -> io::Result<StdioSocket> {
+    StdioSocket::try_new()
 }
 
 impl StdioSocket {
     pub fn try_new() -> io::Result<Self> {
         Ok(StdioSocket {
-            reader: PollEvented2::new(async_stdio::EventedStdin::try_new(stdin())?),
-            writer: PollEvented2::new(async_stdio::EventedStdout::try_new(stdout())?),
+            reader: PollEvented::new(async_stdio::EventedStdin::try_new(stdin())?)?,
+            writer: PollEvented::new(async_stdio::EventedStdout::try_new(stdout())?)?,
         })
     }
 }
 
-pub struct StdioConnector;
-
-impl Read for StdioSocket {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        self.reader.read(buf)
+impl AsyncRead for StdioSocket {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<Result<usize>> {
+        self.project().reader.poll_read(cx, buf)
     }
 }
-
-impl Write for StdioSocket {
-    fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        self.writer.write(buf)
-    }
-
-    fn flush(&mut self) -> Result<(), Error> {
-        self.writer.flush()
-    }
-}
-
-impl AsyncRead for StdioSocket {}
 
 impl AsyncWrite for StdioSocket {
-    fn shutdown(&mut self) -> Result<Async<()>, Error> {
-        self.writer.shutdown()
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<Result<usize>> {
+        self.project().writer.poll_write(cx, buf)
     }
-}
 
-impl HttpConnection for StdioSocket {}
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        self.project().writer.poll_flush(cx)
+    }
 
-impl Connect for StdioConnector {
-    type Transport = StdioSocket;
-    type Error = io::Error;
-    type Future = future::FutureResult<(Self::Transport, Connected), io::Error>;
-
-    fn connect(&self, _: Destination) -> Self::Future {
-        future::result(StdioSocket::try_new().map(|socket| (socket, Connected::new())))
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        self.project().writer.poll_shutdown(cx)
     }
 }
 
@@ -74,6 +68,7 @@ mod async_stdio {
     impl EventedStdin {
         pub fn try_new(stdin: Stdin) -> io::Result<Self> {
             set_non_blocking_flag(&stdin)?;
+
             Ok(EventedStdin(stdin))
         }
     }
@@ -81,6 +76,7 @@ mod async_stdio {
     impl EventedStdout {
         pub fn try_new(stdout: Stdout) -> io::Result<Self> {
             set_non_blocking_flag(&stdout)?;
+
             Ok(EventedStdout(stdout))
         }
     }

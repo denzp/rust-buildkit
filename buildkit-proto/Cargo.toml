@@ -1,6 +1,6 @@
 [package]
 name = "buildkit-proto"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
 edition = "2018"
 
@@ -13,11 +13,11 @@ categories = ["development-tools::build-utils", "api-bindings"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-bytes = "0.4"
-futures = "0.1"
-prost = "0.5"
-prost-types = "0.5"
-tower-grpc = "0.1"
+prost = "0.6"
+prost-types = "0.6"
+tonic = "0.1"
 
-[build-dependencies]
-tower-grpc-build = "0.1"
+[build-dependencies.tonic-build]
+version = "0.1"
+default-features = false
+features = ["transport"]

@@ -1,14 +1,11 @@
 #![deny(warnings)]
 #![deny(clippy::all)]
 
-use async_trait::async_trait;
 use failure::{Error, ResultExt};
-use futures::compat::*;
-use hyper::client::connect::Destination;
 use log::*;
 use serde::de::DeserializeOwned;
-use tower_hyper::{client, util};
-use tower_util::MakeService;
+use tonic::transport::Endpoint;
+use tower::service_fn;
 
 mod bridge;
 mod error;
@@ -23,10 +20,10 @@ use oci::ImageSpecification;
 pub use self::bridge::Bridge;
 pub use self::error::ErrorCode;
 pub use self::options::Options;
-pub use self::stdio::{StdioConnector, StdioSocket};
+pub use self::stdio::{stdio_connector, StdioSocket};
 pub use self::utils::{ErrorWithCauses, OutputRef};
 
-#[async_trait]
+#[tonic::async_trait]
 pub trait Frontend<O = Options>
 where
     O: DeserializeOwned,
@@ -60,20 +57,13 @@ where
     F: Frontend<O>,
     O: DeserializeOwned,
 {
-    let connector = util::Connector::new(StdioConnector);
-    let settings = client::Builder::new().http2_only(true).clone();
-
-    let mut make_client = client::Connect::with_builder(connector, settings);
-    let fake_destination = Destination::try_from_uri("http://localhost".parse()?)?;
-
-    let connection = {
-        tower_request_modifier::Builder::new()
-            .set_origin("http://localhost")
-            .build(make_client.make_service(fake_destination).compat().await?)
-            .unwrap()
+    let channel = {
+        Endpoint::from_static("http://[::]:50051")
+            .connect_with_connector(service_fn(stdio_connector))
+            .await?
     };
 
-    let bridge = Bridge::new(connection);
+    let bridge = Bridge::new(channel);
 
     match frontend_entrypoint(&bridge, frontend).await {
         Ok(output) => {
